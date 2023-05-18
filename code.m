@@ -25,7 +25,7 @@ clear opts
 %%
 %% Given Parameters
 n_me = 16.67;  % Hz aka 1000 min^-1
-U_DC = 300  ;  % Volts DC
+U_DC = 294  ;  % Volts DC
 Rs = 18e-3  ;  % Ohms
 Ld = 370e-6 ;  % Henry
 Lq = 1200e-6;  % Henry
@@ -49,26 +49,47 @@ i_dqmax = 240; % Amps
 %
 % $$\psi_q = L_qi_q$$
 %
+% We also want to find $u_{dq}$ with the following equation:
+%
+% $$u_{dq} = Q(\epsilon_{el})\frac{U_{DC}}{3}\left[\begin{array}{ccc}
+% 1 & -\frac{1}{2} & -\frac{1}{2}\\
+% 0 & \frac{\sqrt{3}}{2} & - \frac{\sqrt{3}}{2}
+% \end{array}\right]v_n$ Where $$Q(\epsilon_{el}) =
+% \left[\begin{array}{ccc}
+% cos(\epsilon_{el}) & sin(\epsilon_{el})\\
+% -sin(\epsilon_{el}) & cos(\epsilon_{el})
+% \end{array}\right]$
 
-p = 3; % Pole Pair Number
-dt = 1e-6; % time step in seconds
-index = 500000;
-time = [0:dt:.5-dt];
-for i = 1:index
-    i_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
-    i_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
-    torque(i) = 3/2*p *((Ld*i_d(i) + psi_p)*i_q(i) - (Lq*i_q(i)*i_d(i)));
-end
-plot(time, torque)
+p     = 3                        ; % Pole Pair Number
+dt    = 1e-6                     ; % Time step in seconds
+index = size(ReducedTorqueData,1); %
+time  = [0:dt:.5-dt]             ;
+vn    = [1;1;1]                  ; % vn = switch state of sa, sb, sc, but
+                                   % the research group only used switch
+                                   % state 1
 
-
-% m = [Timeseries120rpm.timeInS(1:index) Timeseries120rpm.i_aInA(1:index) Timeseries120rpm.i_bInA(1:index) Timeseries120rpm.i_cInA(1:index) Timeseries120rpm.u_aInV(1:index) Timeseries120rpm.u_bInV(1:index) Timeseries120rpm.u_cInV(1:index) Timeseries120rpm.epsilon_elInRad(1:index)];
-% writematrix(m,'ReducedTorqueData.csv') 
-% 
 % for i = 1:index
-%     i_d(i) = 2/3*[cos(Timeseries120rpm.epsilon_elInRad(i)) -cos(Timeseries120rpm.epsilon_elInRad(i) + pi/3) -cos(Timeseries120rpm.epsilon_elInRad(i) - pi/3)]*[Timeseries120rpm.i_aInA(i); Timeseries120rpm.i_bInA(i);Timeseries120rpm.i_cInA(i)];
-%     i_q(i) = 2/3*[-sin(Timeseries120rpm.epsilon_elInRad(i)) sin(Timeseries120rpm.epsilon_elInRad(i) + pi/3) sin(Timeseries120rpm.epsilon_elInRad(i) - pi/3)]*[Timeseries120rpm.i_aInA(i); Timeseries120rpm.i_bInA(i);Timeseries120rpm.i_cInA(i)];
+%     i_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
+%     i_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
 %     torque(i) = 3/2*p *((Ld*i_d(i) + psi_p)*i_q(i) - (Lq*i_q(i)*i_d(i)));
-% end
 % 
+%     Q(i) = [cos(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i))
+%         -sin(ReducedTorqueData.epsilon_elInRad(i)) cos(ReducedTorqueData.epsilon_elInRad(i))];
+%     u_d(i) = Q(i)*U_DC/3*[1 -.5 -.5]*vn;
+%     u_q(i) = Q(i)*U_DC/3*[0 sqrt(3)/2 -sqrt(3)/2]*vn;
+% end
+% plot(time, torque)
 
+% Set up library functions
+x = [x(3:end-3,:); x1(3:end-3,:)];
+M = size(x,2);
+polyorder = 1;
+usesine = 0;
+Theta = poolData(x,M,polyorder,usesine);
+lambda = 0.00002;
+Xi = sparsifyDynamics(Theta,dx,lambda,3)
+
+
+%%
+% Next we want to try and figure out the variables we need. We know we want
+% to find $\frac{d}{dt}i_{dq} = f(i_{dq})$
