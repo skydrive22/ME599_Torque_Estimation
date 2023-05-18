@@ -80,18 +80,21 @@ for i = 1:index
     u_dq = Q*[u_d(i);u_q(i)];
     u_d(i) = u_dq(1);
     u_q(i) = u_dq(2);
-    
 end
+% Could also pull Q and u_dq outside the loop and have (:) instead of (i)
+% in ...elInRad(:), then multiply u_d(:);u_q(:) with Q(:)
+
 % plot(time, torque)
 
 % Set up library functions
-x = [i_d i_q u_d u_q sin(ReducedTorqueData.epsilon_elInRad(:)) cos(ReducedTorqueData.epsilon_elInRad(:))];
-% M = size(x,2);
-% polyorder = 1;
-% usesine = 0;
-% Theta = poolData(x,M,polyorder,usesine);
-% lambda = 0.00002; % 
-% Xi = sparsifyDynamics(Theta,dx,lambda,3);
+x = [i_d' i_q' u_d' u_q' sin(ReducedTorqueData.epsilon_elInRad(:)) cos(ReducedTorqueData.epsilon_elInRad(:))];
+M = size(x,2);
+polyorder = 1;
+usesine = 0;
+Theta = poolData(x,M,polyorder,usesine);
+lambda = 0.00002; % 
+dx = i_d
+Xi = sparsifyDynamics(Theta,dx,lambda,3);
 % poolDataLIST({'x','y','z'},Xi,M,polyorder,usesine);
 
 
