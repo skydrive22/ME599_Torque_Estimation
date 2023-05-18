@@ -93,8 +93,8 @@ polyorder = 1;
 usesine = 0;
 Theta = poolData(x,M,polyorder,usesine);
 lambda = 0.00002; % 
-dx = i_d
-Xi = sparsifyDynamics(Theta,dx,lambda,3);
+
+%Xi = sparsifyDynamics(Theta,dx,lambda,3);
 % poolDataLIST({'x','y','z'},Xi,M,polyorder,usesine);
 
 
