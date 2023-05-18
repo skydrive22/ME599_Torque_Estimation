@@ -70,5 +70,5 @@ plot(time, torque)
 %     i_q(i) = 2/3*[-sin(Timeseries120rpm.epsilon_elInRad(i)) sin(Timeseries120rpm.epsilon_elInRad(i) + pi/3) sin(Timeseries120rpm.epsilon_elInRad(i) - pi/3)]*[Timeseries120rpm.i_aInA(i); Timeseries120rpm.i_bInA(i);Timeseries120rpm.i_cInA(i)];
 %     torque(i) = 3/2*p *((Ld*i_d(i) + psi_p)*i_q(i) - (Lq*i_q(i)*i_d(i)));
 % end
-% 
+
 
