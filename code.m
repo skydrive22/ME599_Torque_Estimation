@@ -1,5 +1,6 @@
-%% Header
-% Trial change for github check
+%% Torque Estimation
+% ME 599 - Data-Driven Modeling
+
 %% Set up the Import Options and import the data
 opts = delimitedTextImportOptions("NumVariables", 8);
 
@@ -21,6 +22,7 @@ ReducedTorqueData = readtable("./ReducedTorqueData.csv", opts);
 
 %% Clear temporary variables
 clear opts
+%%
 %% Given Parameters
 n_me = 16.67;  % Hz aka 1000 min^-1
 U_DC = 300  ;  % Volts DC
@@ -31,13 +33,21 @@ psi_p = 66e-3; % Vs
 i_dqmax = 240; % Amps
 
 %%
-% 
-% 
+% To start we want to first import our data and analyze the torque graph
+% with time to obatin a clear idea of the quality of data. This also allows
+% us to compare the data with the averages given the torque dataset
+% provided by the publishers to verify the values are the same.
+%
 % $$T = \frac{3}{2}p(\psi_di_q - \psi_qi_d) $$
+%
+% where T = torque, p = pole pair number, $\psi_d$ and $\psi_q$ = , and
+% $i_d$ and $i_q$ = current in after a current transform from the $i_{abc}$
+% current readings. Next, we can calculate both $\psi_d$ and $\psi_q$ with
+% the following equations:
 %
 % $$\psi_d = L_di_d + \psi_p$$
 %
-% $$\psi_q - L_qi_q$$
+% $$\psi_q = L_qi_q$$
 %
 
 p = 3; % Pole Pair Number
