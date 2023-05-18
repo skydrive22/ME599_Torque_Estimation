@@ -1,5 +1,6 @@
 %% Torque Estimation
 % ME 599 - Data-Driven Modeling
+clc;clear; 
 
 %% Set up the Import Options and import the data
 opts = delimitedTextImportOptions("NumVariables", 8);
