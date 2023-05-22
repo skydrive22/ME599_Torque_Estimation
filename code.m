@@ -85,11 +85,15 @@ end
 %%
 % Could also pull Q and u_dq outside the loop and have (:) instead of (i)
 % in ...elInRad(:), then multiply u_d(:);u_q(:) with Q(:)
-
-% plot(time, torque)
+averagedTorque = smoothdata(torque);
+plot(time, torque,time,averagedTorque)
+xlabel('Time')
+ylabel('Torque (Nm)')
+legend('Torque Data', 'Averaged Torque Data')
 %%
 % Set up library functions
-x = [i_d' i_q' u_d' u_q' sin(ReducedTorqueData.epsilon_elInRad(:)) cos(ReducedTorqueData.epsilon_elInRad(:))];
+x = [i_d' i_q' u_d' u_q' sin(ReducedTorqueData.epsilon_elInRad(:))...
+    cos(ReducedTorqueData.epsilon_elInRad(:))];
 M = size(x,2);
 
 for i=3:length(x)-3
@@ -99,15 +103,26 @@ for i=3:length(x)-3
 end
 
 x = [x(3:end-3,:)];
-polyorder = 1;
+polyorder = 2;
 usesine   = 0;
 Theta = poolData(x,M,polyorder,usesine);
-lambda = 10; % 
+lambda = .0000001; % 
 
 Xi = sparsifyDynamics(Theta,dx,lambda,3);
 poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
 
+%%
+r = 5;
+options = odeset('RelTol',1e-8,'AbsTol',1e-8*ones(1,r+1));
+x0 = x(1,:);%
+[tD,xD]=ode45(@(t,x)sparseGalerkin(t,x,Xi,polyorder,usesine),time,x0,options);
 
+% i_dApprox = xD(:,1);
+% i_qApprox = xD(:,2);
+% torqueApprox = 3/2*p.*((Ld.*i_dApprox(:) + psi_p).*i_qApprox(:) -...
+%     (Lq.*i_qApprox(:).*i_dApprox(:)));
+figure(2)
+plot(tD,xD(:,2))
 %%
 % Next we want to try and figure out the variables we need. We know we want
 % to find $\frac{d}{dt}i_{dq} = f(i_{dq})$
