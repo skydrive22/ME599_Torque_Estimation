@@ -106,7 +106,7 @@ x = [x(3:end-3,:)];
 polyorder = 2;
 usesine   = 0;
 Theta = poolData(x,M,polyorder,usesine);
-lambda = .0000001; % 
+lambda = dt; % 
 
 Xi = sparsifyDynamics(Theta,dx,lambda,3);
 poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
@@ -122,7 +122,7 @@ x0 = x(1,:);%
 % torqueApprox = 3/2*p.*((Ld.*i_dApprox(:) + psi_p).*i_qApprox(:) -...
 %     (Lq.*i_qApprox(:).*i_dApprox(:)));
 figure(2)
-plot(tD,xD(:,2))
+plot(tD,xD(:,1))
 %%
 % Next we want to try and figure out the variables we need. We know we want
 % to find $\frac{d}{dt}i_{dq} = f(i_{dq})$
