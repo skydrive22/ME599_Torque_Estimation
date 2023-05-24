@@ -77,10 +77,7 @@ for i = 1:index
     Q = [cos(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i))
         -sin(ReducedTorqueData.epsilon_elInRad(i)) cos(ReducedTorqueData.epsilon_elInRad(i))];
     u_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
-    u_q(i) = U_DC/3.*[0 sqrt(3)/2 -sqrt(3)/2]*vn;
-    u_dq = Q*[u_d(i);u_q(i)];
-    u_d(i) = u_dq(1);
-    u_q(i) = u_dq(2);
+    u_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
 end
 %%
 % Could also pull Q and u_dq outside the loop and have (:) instead of (i)
