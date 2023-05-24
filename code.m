@@ -76,7 +76,7 @@ for i = 1:index
 
     Q = [cos(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i))
         -sin(ReducedTorqueData.epsilon_elInRad(i)) cos(ReducedTorqueData.epsilon_elInRad(i))];
-    u_d(i) = U_DC/3.*[1 -.5 -.5]*vn;
+    u_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
     u_q(i) = U_DC/3.*[0 sqrt(3)/2 -sqrt(3)/2]*vn;
     u_dq = Q*[u_d(i);u_q(i)];
     u_d(i) = u_dq(1);
@@ -103,7 +103,7 @@ for i=3:length(x)-3
 end
 
 x = [x(3:end-3,:)];
-polyorder = 2;
+polyorder = 1;
 usesine   = 0;
 Theta = poolData(x,M,polyorder,usesine);
 lambda = dt; % 
