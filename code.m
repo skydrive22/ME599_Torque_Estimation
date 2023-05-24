@@ -68,7 +68,7 @@ time  = [0:dt:.5-dt]             ;
 vn    = [1;1;1]                  ; % vn = switch state of sa, sb, sc, but
                                    % the research group only used switch
                                    % state 1
-
+%%
 for i = 1:index
     i_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
     i_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
@@ -79,6 +79,7 @@ for i = 1:index
     u_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
     u_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
 end
+
 %%
 % Could also pull Q and u_dq outside the loop and have (:) instead of (i)
 % in ...elInRad(:), then multiply u_d(:);u_q(:) with Q(:)
@@ -103,23 +104,20 @@ x = [x(3:end-3,:)];
 polyorder = 1;
 usesine   = 0;
 Theta = poolData(x,M,polyorder,usesine);
-lambda = dt; % 
+lambda = .5; % 
 
-Xi = sparsifyDynamics(Theta,dx,lambda,3);
+Xi = sparsifyDynamics(Theta,dx,lambda,6);
 poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
 
 %%
 r = 5;
-options = odeset('RelTol',1e-8,'AbsTol',1e-8*ones(1,r+1));
+options = odeset('RelTol',1e-3,'AbsTol',1e-6*ones(1,r+1));
 x0 = x(1,:);%
 [tD,xD]=ode45(@(t,x)sparseGalerkin(t,x,Xi,polyorder,usesine),time,x0,options);
 
-% i_dApprox = xD(:,1);
-% i_qApprox = xD(:,2);
-% torqueApprox = 3/2*p.*((Ld.*i_dApprox(:) + psi_p).*i_qApprox(:) -...
-%     (Lq.*i_qApprox(:).*i_dApprox(:)));
+torqueSINDy = 3/2*p*((Ld*xD(:,1) + psi_p).*xD(:,2) - (Lq*xD(:,2).*xD(:,1)));
 figure(2)
-plot(tD,xD(:,1))
+plot(tD,torqueSINDy,time,averagedTorque,'r')
 %%
 % Next we want to try and figure out the variables we need. We know we want
 % to find $\frac{d}{dt}i_{dq} = f(i_{dq})$
