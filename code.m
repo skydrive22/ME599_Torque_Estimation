@@ -69,37 +69,55 @@ vn    = [1;1;1]                  ; % vn = switch state of sa, sb, sc, but
                                    % the research group only used switch
                                    % state 1
 %%
-for i = 1:index
-    i_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
-    i_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.i_aInA(i); ReducedTorqueData.i_bInA(i);ReducedTorqueData.i_cInA(i)];
-    torque(i) = 3/2*p *((Ld*i_d(i) + psi_p)*i_q(i) - (Lq*i_q(i)*i_d(i)));
+angleCos = [cos(ReducedTorqueData.epsilon_elInRad),...
+        -cos(ReducedTorqueData.epsilon_elInRad + pi/3),...
+        -cos(ReducedTorqueData.epsilon_elInRad - pi/3)];
+angleSin = [-sin(ReducedTorqueData.epsilon_elInRad),...
+        sin(ReducedTorqueData.epsilon_elInRad + pi/3),...
+        sin(ReducedTorqueData.epsilon_elInRad - pi/3)];
+iabc = [ReducedTorqueData.i_aInA ReducedTorqueData.i_bInA ReducedTorqueData.i_cInA]';
+vabc = [ReducedTorqueData.u_aInV ReducedTorqueData.u_bInV ReducedTorqueData.u_cInV]';
+Q = [cos(ReducedTorqueData.epsilon_elInRad) sin(ReducedTorqueData.epsilon_elInRad)
+        -sin(ReducedTorqueData.epsilon_elInRad) cos(ReducedTorqueData.epsilon_elInRad)];
 
-    Q = [cos(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i))
-        -sin(ReducedTorqueData.epsilon_elInRad(i)) cos(ReducedTorqueData.epsilon_elInRad(i))];
-    u_d(i) = 2/3*[cos(ReducedTorqueData.epsilon_elInRad(i)) -cos(ReducedTorqueData.epsilon_elInRad(i) + pi/3) -cos(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
-    u_q(i) = 2/3*[-sin(ReducedTorqueData.epsilon_elInRad(i)) sin(ReducedTorqueData.epsilon_elInRad(i) + pi/3) sin(ReducedTorqueData.epsilon_elInRad(i) - pi/3)]*[ReducedTorqueData.u_aInV(i); ReducedTorqueData.u_bInV(i);ReducedTorqueData.u_cInV(i)];
+i_d = zeros(size(ReducedTorqueData,1),1);
+i_q = i_d; u_d = i_d; u_q = i_d;
+%%
+for i = 1:length(time)
+    i_d(i) = 2/3*angleCos(i,:)*iabc(:,i);
+    i_q(i) = 2/3*angleSin(i,:)*iabc(:,i);
+    u_d(i) = 2/3*angleCos(i,:)*vabc(:,i);
+    u_q(i) = 2/3*angleSin(i,:)*vabc(:,i);
 end
+%%
+i_dPass = lowpass(i_d,.0001);
+i_qPass = lowpass(i_q,.0001);
+i_dAve = smoothdata(i_d);
+i_qAve = smoothdata(i_q);
+torque = 3/2*p *((Ld*i_d + psi_p).*i_q - (Lq*i_q.*i_d));
+torquePass = 3/2*p *((Ld*i_dPass + psi_p).*i_qPass - (Lq*i_qPass.*i_dPass));
+torqueAve = 3/2*p *((Ld*i_dAve + psi_p).*i_qAve - (Lq*i_qAve.*i_dAve));
 
 %%
-% Could also pull Q and u_dq outside the loop and have (:) instead of (i)
-% in ...elInRad(:), then multiply u_d(:);u_q(:) with Q(:)
 averagedTorque = smoothdata(torque);
-plot(time, torque,time,averagedTorque)
+plot(time, torque,time,averagedTorque,time,torquePass,time,torqueAve)
 xlabel('Time')
 ylabel('Torque (Nm)')
-legend('Torque Data', 'Averaged Torque Data')
+legend('Torque Data', 'Averaged Torque Data','Low Pass','Ave I')
 %%
 % Set up library functions
-x = [i_d' i_q' u_d' u_q' sin(ReducedTorqueData.epsilon_elInRad(:))...
-    cos(ReducedTorqueData.epsilon_elInRad(:))];
-M = size(x,2);
+sinEps = sin(ReducedTorqueData.epsilon_elInRad);
+cosEps = cos(ReducedTorqueData.epsilon_elInRad);
+%x = [i_d i_q u_d u_q sinEps cosEps];
+x = [i_dPass i_qPass u_d u_q sinEps cosEps];
 
+M = size(x,2);
 for i=3:length(x)-3
     for k = 1:M
         dx(i-2,k) = (1/(12*dt))*(-x(i+2,k)+8*x(i+1,k)-8*x(i-1,k)+x(i-2,k));
     end
 end
-
+%%
 x = [x(3:end-3,:)];
 polyorder = 1;
 usesine   = 0;
@@ -108,7 +126,6 @@ lambda = .5; %
 
 Xi = sparsifyDynamics(Theta,dx,lambda,6);
 poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
-
 %%
 r = 5;
 options = odeset('RelTol',1e-3,'AbsTol',1e-6*ones(1,r+1));
