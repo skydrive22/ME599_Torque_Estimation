@@ -18,7 +18,7 @@ opts.ExtraColumnsRule = "ignore";
 opts.EmptyLineRule = "read";
 
 % Import the data
-ReducedTorqueData = readtable("./ReducedTorqueData.csv", opts);
+ReducedTorqueData = readtable("../ReducedTorqueData.csv", opts);
 
 
 %% Clear temporary variables
@@ -90,26 +90,31 @@ for i = 1:length(time)
     u_q(i) = 2/3*angleSin(i,:)*vabc(:,i);
 end
 %%
-i_dPass = lowpass(i_d,.0001);
-i_qPass = lowpass(i_q,.0001);
+i_dPass = lowpass(i_d,.00005);
+i_qPass = lowpass(i_q,.00005);
 i_dAve = smoothdata(i_d);
 i_qAve = smoothdata(i_q);
 torque = 3/2*p *((Ld*i_d + psi_p).*i_q - (Lq*i_q.*i_d));
 torquePass = 3/2*p *((Ld*i_dPass + psi_p).*i_qPass - (Lq*i_qPass.*i_dPass));
 torqueAve = 3/2*p *((Ld*i_dAve + psi_p).*i_qAve - (Lq*i_qAve.*i_dAve));
+averagedTorque = smoothdata(torque);
 
 %%
-averagedTorque = smoothdata(torque);
-plot(time, torque,time,averagedTorque,time,torquePass,time,torqueAve)
+subplot(2,1,1)
+plot(time, torque,time,torquePass)
+legend('Raw Torque Data','Low Pass Filter - \pi/20000 rad/sample')
+subplot(2,1,2)
+plot(time,averagedTorque,time,torqueAve)
 xlabel('Time')
 ylabel('Torque (Nm)')
-legend('Torque Data', 'Averaged Torque Data','Low Pass','Ave I')
+legend('Averaged Torque Data','Averaged Current')
+title('Torque Vs. Time')
 %%
 % Set up library functions
 sinEps = sin(ReducedTorqueData.epsilon_elInRad);
 cosEps = cos(ReducedTorqueData.epsilon_elInRad);
-%x = [i_d i_q u_d u_q sinEps cosEps];
-x = [i_dPass i_qPass u_d u_q sinEps cosEps];
+x = [i_d i_q u_d u_q sinEps cosEps];
+%x = [i_dPass i_qPass u_d u_q sinEps cosEps];
 
 M = size(x,2);
 for i=3:length(x)-3
@@ -125,7 +130,7 @@ Theta = poolData(x,M,polyorder,usesine);
 lambda = .5; % 
 
 Xi = sparsifyDynamics(Theta,dx,lambda,6);
-poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
+A = poolDataLIST({'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
 %%
 r = 5;
 options = odeset('RelTol',1e-3,'AbsTol',1e-6*ones(1,r+1));
@@ -134,7 +139,9 @@ x0 = x(1,:);%
 
 torqueSINDy = 3/2*p*((Ld*xD(:,1) + psi_p).*xD(:,2) - (Lq*xD(:,2).*xD(:,1)));
 figure(2)
-plot(tD,torqueSINDy,time,averagedTorque,'r')
-%%
-% Next we want to try and figure out the variables we need. We know we want
-% to find $\frac{d}{dt}i_{dq} = f(i_{dq})$
+n = 500;
+plot(tD,torqueSINDy,time,averagedTorque,'r',time(1:n:end),torquePass(1:n:end))
+xlabel('Time')
+ylabel('Torque (Nm)')
+legend('SINDy Estimated Torque','Averaged Torque Data','Low Pass Torque Data')
+title('Torque Vs. Time')
