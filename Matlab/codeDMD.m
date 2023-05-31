@@ -62,7 +62,7 @@ i_dqmax = 240; % Amps
 % \end{array}\right]$
 
 p     = 3                        ; % Pole Pair Number
-m     = 5                       ; % Number of reduced datapoints
+m     = 1                       ; % Number of reduced datapoints
 dt    = 1e-6 * m                 ; % Time step in seconds
 index = size(ReducedTorqueData,1)/m; %
 time  = [0:dt:.5-dt]             ;
@@ -95,59 +95,10 @@ for i = 1:length(time)
     u_d(i) = 2/3*angleCos(i,:)*vabc(:,i);
     u_q(i) = 2/3*angleSin(i,:)*vabc(:,i);
 end
-%%
-i_dPass = lowpass(i_d,1/1e5);
-i_qPass = lowpass(i_q,1/1e5);
-i_dAve = smoothdata(i_d);
-i_qAve = smoothdata(i_q);
 torque = 3/2*p *((Ld*i_d + psi_p).*i_q - (Lq*i_q.*i_d));
-torquePass = 3/2*p *((Ld*i_dPass + psi_p).*i_qPass - (Lq*i_qPass.*i_dPass));
-torqueAve = 3/2*p *((Ld*i_dAve + psi_p).*i_qAve - (Lq*i_qAve.*i_dAve));
-averagedTorque = smoothdata(torque);
-
-%%
-subplot(2,1,1)
-plot(time, torque,time,torquePass)
-legend('Raw Torque Data','Low Pass Filter - \pi/20000 rad/sample')
-subplot(2,1,2)
-plot(time,averagedTorque,time,torqueAve)
-xlabel('Time')
-ylabel('Torque (Nm)')
-legend('Averaged Torque Data','Averaged Current')
-title('Torque Vs. Time')
-%%
-% Set up library functions
-sinEps = sin(ReducedTorqueData.epsilon_elInRad(1:m:end));
-cosEps = cos(ReducedTorqueData.epsilon_elInRad(1:m:end));
 x = [torque i_d i_q u_d u_q sinEps cosEps];
-%x = [torquePass i_dPass i_qPass u_d u_q sinEps cosEps];
 
-M = size(x,2);
-for i=3:length(x)-3
-    for k = 1:M
-        dx(i-2,k) = (1/(12*dt))*(-x(i+2,k)+8*x(i+1,k)-8*x(i-1,k)+x(i-2,k));
-    end
-end
 %%
-x = [x(3:end-3,:)];
-polyorder = 1;
-usesine   = 0;
-Theta = poolData(x,M,polyorder,usesine);
-lambda = .5; % 
-
-Xi = sparsifyDynamics(Theta,dx,lambda,6);
-poolDataLIST({'torque', 'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
-%%
-r = 6;
-options = odeset('RelTol',1e-8,'AbsTol',1e-8*ones(1,r+1));
-x0 = x(1,:);%
-[tD,xD]=ode113(@(t,x)sparseGalerkin(t,x,Xi,polyorder,usesine),time,x0,options);
-
-%torqueSINDy = 3/2*p*((Ld*xD(:,1) + psi_p).*xD(:,2) - (Lq*xD(:,2).*xD(:,1)));
-torqueSINDy = xD(:,1);
-figure(2)
-plot(tD,torqueSINDy,'b',time,torquePass,'r-')
-xlabel('Time')
-ylabel('Torque (Nm)')
-legend('SINDy Estimated Torque','Low Pass Torque Data')
-title('Torque Vs. Time')
+%[ DModes,DEv,Norm ] = SVDenhanced_DMD(torque);
+r = 20;
+[Phi, Lambda, b] = DMD(x(:,1:end-1),torque(:,2:end),r);
