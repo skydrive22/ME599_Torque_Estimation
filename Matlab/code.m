@@ -62,7 +62,7 @@ i_dqmax = 240; % Amps
 % \end{array}\right]$
 
 p     = 3                        ; % Pole Pair Number
-m     = 5                       ; % Number of reduced datapoints
+m     = 1                       ; % Number of reduced datapoints
 dt    = 1e-6 * m                 ; % Time step in seconds
 index = size(ReducedTorqueData,1)/m; %
 time  = [0:dt:.5-dt]             ;
@@ -83,10 +83,12 @@ Q = [cos(ReducedTorqueData.epsilon_elInRad) sin(ReducedTorqueData.epsilon_elInRa
 
 angleCos = angleCos(1:m:end,:);
 angleSin = angleSin(1:m:end,:);
-iabc = iabc(:,1:m:end);
-vabc = vabc(:,1:m:end);
-Q = Q(1:m:end);
-i_d = zeros(size(ReducedTorqueData,1)/m,1);
+sinEps = sin(ReducedTorqueData.epsilon_elInRad(1:m:end));
+cosEps = cos(ReducedTorqueData.epsilon_elInRad(1:m:end));
+iabc     = iabc(:,1:m:end);
+vabc     = vabc(:,1:m:end);
+Q        = Q(1:m:end);
+i_d      = zeros(size(ReducedTorqueData,1)/m,1);
 i_q = i_d; u_d = i_d; u_q = i_d;
 %%
 for i = 1:length(time)
@@ -96,31 +98,37 @@ for i = 1:length(time)
     u_q(i) = 2/3*angleSin(i,:)*vabc(:,i);
 end
 %%
-i_dPass = lowpass(i_d,1/1e5);
-i_qPass = lowpass(i_q,1/1e5);
-i_dAve = smoothdata(i_d);
-i_qAve = smoothdata(i_q);
+% i_dPass = lowpass(i_d,1/1e5);
+% i_qPass = lowpass(i_q,1/1e5);
+% u_dPass = lowpass(u_d,1/1e5);
+% u_qPass = lowpass(u_q,1/1e5);
+% sinEpsPass = lowpass(sinEps,1/1e5);
+% cosEpsPass = lowpass(cosEps,1/1e5);
+method = 'movmean';
+i_dAve = smoothdata(i_d,method);
+i_qAve = smoothdata(i_q,method);
+u_dAve = smoothdata(u_d,method);
+u_qAve = smoothdata(u_q,method);
+sinEpsAve = smoothdata(sinEps,method);
+cosEpsAve = smoothdata(cosEps,method);
 torque = 3/2*p *((Ld*i_d + psi_p).*i_q - (Lq*i_q.*i_d));
-torquePass = 3/2*p *((Ld*i_dPass + psi_p).*i_qPass - (Lq*i_qPass.*i_dPass));
+% torquePass = 3/2*p *((Ld*i_dPass + psi_p).*i_qPass - (Lq*i_qPass.*i_dPass));
 torqueAve = 3/2*p *((Ld*i_dAve + psi_p).*i_qAve - (Lq*i_qAve.*i_dAve));
-averagedTorque = smoothdata(torque);
+averagedTorque = smoothdata(torque,method);
 
 %%
-subplot(2,1,1)
-plot(time, torque,time,torquePass)
-legend('Raw Torque Data','Low Pass Filter - \pi/20000 rad/sample')
-subplot(2,1,2)
-plot(time,averagedTorque,time,torqueAve)
+figure(1)
+plot(time, torque,time,torquePass,time,averagedTorque)
+legend('Raw Torque Data','Low Pass Filter - \pi/20000 rad/sample','Averaged Torque Data')
 xlabel('Time')
 ylabel('Torque (Nm)')
-legend('Averaged Torque Data','Averaged Current')
 title('Torque Vs. Time')
 %%
 % Set up library functions
-sinEps = sin(ReducedTorqueData.epsilon_elInRad(1:m:end));
-cosEps = cos(ReducedTorqueData.epsilon_elInRad(1:m:end));
-x = [torque i_d i_q u_d u_q sinEps cosEps];
-%x = [torquePass i_dPass i_qPass u_d u_q sinEps cosEps];
+
+%x = [torque i_d i_q u_d u_q sinEps cosEps];
+%x = [torquePass i_dPass i_qPass u_dPass u_qPass sinEpsPass cosEpsPass];
+x = [torqueAve i_dAve i_qAve u_dAve u_qAve sinEpsAve cosEpsAve];
 
 M = size(x,2);
 for i=3:length(x)-3
@@ -128,26 +136,26 @@ for i=3:length(x)-3
         dx(i-2,k) = (1/(12*dt))*(-x(i+2,k)+8*x(i+1,k)-8*x(i-1,k)+x(i-2,k));
     end
 end
-%%
+
 x = [x(3:end-3,:)];
-polyorder = 1;
+polyorder = 3;
 usesine   = 0;
 Theta = poolData(x,M,polyorder,usesine);
-lambda = .5; % 
+lambda = .05; % 
 
 Xi = sparsifyDynamics(Theta,dx,lambda,6);
 poolDataLIST({'torque', 'id','iq','ud','uq','sin(e)','cos(e)'},Xi,M,polyorder,usesine);
 %%
 r = 6;
-options = odeset('RelTol',1e-8,'AbsTol',1e-8*ones(1,r+1));
+options = odeset('RelTol',1e-6,'AbsTol',1e-6*ones(1,r+1));
 x0 = x(1,:);%
-[tD,xD]=ode113(@(t,x)sparseGalerkin(t,x,Xi,polyorder,usesine),time,x0,options);
+[tD,xD]=ode45(@(t,x)sparseGalerkin(t,x,Xi,polyorder,usesine),time,x0,options);
 
-%torqueSINDy = 3/2*p*((Ld*xD(:,1) + psi_p).*xD(:,2) - (Lq*xD(:,2).*xD(:,1)));
-torqueSINDy = xD(:,1);
+torqueSINDy = 3/2*p*((Ld*xD(:,2) + psi_p).*xD(:,3) - (Lq*xD(:,3).*xD(:,2)));
+%torqueSINDy = xD(:,1);
 figure(2)
-plot(tD,torqueSINDy,'b',time,torquePass,'r-')
+plot(time,torqueAve,'r-',tD,xD(:,1),'b')
 xlabel('Time')
 ylabel('Torque (Nm)')
-legend('SINDy Estimated Torque','Low Pass Torque Data')
-title('Torque Vs. Time')
+legend('Average Torque Data','SINDy Estimated Average Torque')
+title('SINDy Torque Vs. Time')
