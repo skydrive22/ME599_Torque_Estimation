@@ -1,4 +1,4 @@
-function [ DModes,DEv,Norm] = SVDenhanced_DMD( Data,varargin )
+function [ DModes,DEv,Norm,b] = SVDenhanced_DMD( Data,varargin )
 % Dynamic Mode Decomposition as presented by 
 % "Dynamic Mode Decomposition of numerical and experimental data" by Peter
 % J. Schmid, Journal of Fluid Mechanics, 2010
@@ -53,6 +53,7 @@ Atilde = (U'*(Y*V)) / S;
 
 DModes = U*w;
 DEv = diag(lambda);
+
 if nargout>2
     b = pinv(DModes)*Data(:,end);     % terminal coordinates in the Koopman subspace
     [Norm,Index]=sort(abs(b),'descend');
