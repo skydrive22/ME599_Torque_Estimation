@@ -96,7 +96,7 @@ for i = 1:length(time)
     u_q(i) = 2/3*angleSin(i,:)*vabc(:,i);
 end
 %%
-i_dPass = lowpass(i_d,1/1e5);
+i_dPass = lowpass(i_d,1/1e);
 i_qPass = lowpass(i_q,1/1e5);
 i_dAve = smoothdata(i_d);
 i_qAve = smoothdata(i_q);
